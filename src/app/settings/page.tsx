@@ -21,14 +21,19 @@ const inputClass =
 function Card({
   title,
   description,
+  delay = 0,
   children,
 }: {
   title: string;
   description?: string;
+  delay?: number;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section
+      className="animate-fade-up rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      style={{ animationDelay: `${delay}ms` }}
+    >
       <h2 className="text-sm font-bold text-slate-900">{title}</h2>
       {description ? <p className="mt-0.5 text-xs text-slate-500">{description}</p> : null}
       <div className="mt-4 space-y-4">{children}</div>
@@ -104,15 +109,19 @@ export default function SettingsPage() {
     <div className="flex flex-1 flex-col">
       <Nav />
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
-        <h1 className="text-2xl font-bold text-slate-900">Brand Settings</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <h1 className="animate-fade-up text-2xl font-bold text-slate-900">Brand Settings</h1>
+        <p className="animate-fade-up mt-1 text-sm text-slate-600 [animation-delay:60ms]">
           This is what makes generated content <em>yours</em>: your logo and colors get baked into
           every postcard and carousel image, and your industry/voice/keywords steer the tone and
           SEO terms in every LinkedIn post, blog post, and newsletter.
         </p>
 
         <div className="mt-6 space-y-5">
-          <Card title="Logo" description="Square PNG, JPG, or WEBP works best — used on every postcard and carousel slide.">
+          <Card
+            delay={120}
+            title="Logo"
+            description="Square PNG, JPG, or WEBP works best — used on every postcard and carousel slide."
+          >
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
@@ -128,7 +137,7 @@ export default function SettingsPage() {
             )}
           </Card>
 
-          <Card title="Identity">
+          <Card delay={180} title="Identity">
             <div className="grid grid-cols-2 gap-4">
               <Field label="Company name">
                 <input
@@ -161,7 +170,7 @@ export default function SettingsPage() {
             </div>
           </Card>
 
-          <Card title="Voice & positioning" description="Steers the tone and SEO keywords used in generated copy.">
+          <Card delay={240} title="Voice & positioning" description="Steers the tone and SEO keywords used in generated copy.">
             <Field label="Industry / positioning">
               <input
                 value={brand.industry}
@@ -188,7 +197,7 @@ export default function SettingsPage() {
             </Field>
           </Card>
 
-          <Card title="Colors" description="Used across every generated postcard and carousel slide.">
+          <Card delay={300} title="Colors" description="Used across every generated postcard and carousel slide.">
             <div className="grid grid-cols-3 gap-4">
               {(["primary", "primaryDark", "background", "text", "muted"] as const).map((key) => (
                 <div key={key}>

@@ -9,20 +9,18 @@ export function Nav() {
   return (
     <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3.5">
-        <Link href="/" className="flex items-center gap-2.5">
-          {logoFailed ? (
-            <div className="h-[30px] w-[30px] rounded-md bg-brand" />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src="/brand/logo.png"
-              alt=""
-              width={30}
-              height={30}
-              className="rounded-md"
-              onError={() => setLogoFailed(true)}
-            />
-          )}
+        <Link href="/" className="group flex items-center gap-2.5">
+          <div className="flex h-[30px] w-[30px] items-center justify-center rounded-md bg-brand p-1 transition group-hover:scale-105">
+            {!logoFailed ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src="/brand/logo.png"
+                alt=""
+                className="h-full w-full object-contain"
+                onError={() => setLogoFailed(true)}
+              />
+            ) : null}
+          </div>
           <span className="text-[15px] font-bold tracking-tight text-slate-900">
             WATSNEX <span className="font-medium text-slate-400">Content Generator</span>
           </span>
