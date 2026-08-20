@@ -37,9 +37,8 @@ yarn-error.log*
 # vercel
 .vercel
 
-# user-uploaded brand assets / config (per-deployment, not source)
+# local runtime brand config (per-deployment, not source)
 /data/
-/public/brand/logo.*
 
 # typescript
 *.tsbuildinfo
