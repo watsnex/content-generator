@@ -55,15 +55,20 @@ function Section({
   title,
   eyebrow,
   action,
+  delay = 0,
   children,
 }: {
   title: React.ReactNode;
   eyebrow?: string;
   action?: React.ReactNode;
+  delay?: number;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section
+      className="animate-fade-up rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      style={{ animationDelay: `${delay}ms` }}
+    >
       <div className="flex items-start justify-between gap-4">
         <div>
           {eyebrow ? (
@@ -116,10 +121,12 @@ export default function EpisodePage() {
     <div className="flex flex-1 flex-col">
       <Nav />
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12">
-        <h1 className="text-2xl font-bold text-slate-900">Episode → Content</h1>
-        <p className="mt-1 text-sm text-slate-600">Upload or paste the full podcast transcript below.</p>
+        <h1 className="animate-fade-up text-2xl font-bold text-slate-900">Episode → Content</h1>
+        <p className="animate-fade-up mt-1 text-sm text-slate-600 [animation-delay:60ms]">
+          Upload or paste the full podcast transcript below.
+        </p>
 
-        <div className="mt-6 space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="animate-fade-up mt-6 space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm [animation-delay:120ms]">
           <Field label="Guest name" hint="Optional — helps if the transcript doesn't state it clearly">
             <input
               value={guestName}
@@ -153,7 +160,9 @@ export default function EpisodePage() {
             <button
               onClick={handleSubmit}
               disabled={loading || transcript.trim().length < 200}
-              className="inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40"
+              className={`inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                loading ? "animate-shimmer" : "bg-brand hover:bg-brand-dark"
+              }`}
             >
               {loading ? (
                 <>
@@ -179,7 +188,7 @@ export default function EpisodePage() {
 
         {result ? (
           <div className="mt-10 space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand/20 bg-brand/5 px-6 py-4">
+            <div className="animate-fade-up flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand/20 bg-brand/5 px-6 py-4">
               <h2 className="text-lg font-bold text-slate-900">
                 {result.content.episodeTopic}
                 {result.content.guestName ? (
@@ -189,13 +198,19 @@ export default function EpisodePage() {
               <p className="text-xs text-slate-500">Keywords: {result.content.seoKeywordsUsed.join(", ")}</p>
             </div>
 
-            <Section eyebrow="Long-form" title="LinkedIn post" action={<CopyButton text={result.content.linkedinPost} />}>
+            <Section
+              delay={60}
+              eyebrow="Long-form"
+              title="LinkedIn post"
+              action={<CopyButton text={result.content.linkedinPost} />}
+            >
               <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-700">
                 {result.content.linkedinPost}
               </pre>
             </Section>
 
             <Section
+              delay={120}
               eyebrow="Long-form"
               title={`Blog post — ${result.content.blogPost.title}`}
               action={<CopyButton text={`# ${result.content.blogPost.title}\n\n${result.content.blogPost.body}`} />}
@@ -207,6 +222,7 @@ export default function EpisodePage() {
             </Section>
 
             <Section
+              delay={180}
               eyebrow="Email"
               title={`Newsletter — ${result.content.newsletter.subjectLine}`}
               action={<CopyButton text={result.content.newsletter.body} />}
@@ -217,15 +233,15 @@ export default function EpisodePage() {
               </pre>
             </Section>
 
-            <Section eyebrow="Visual" title={`Quote postcards (${result.postcards.length})`}>
+            <Section delay={240} eyebrow="Visual" title={`Quote postcards (${result.postcards.length})`}>
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
                 {result.postcards.map((q, i) => (
-                  <div key={i} className="space-y-2">
+                  <div key={i} className="group space-y-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={q.image}
                       alt={q.text}
-                      className="w-full rounded-xl border border-slate-200 shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 shadow-sm transition duration-300 group-hover:shadow-lg group-hover:-translate-y-0.5"
                     />
                     <a
                       href={q.image}
@@ -240,17 +256,18 @@ export default function EpisodePage() {
             </Section>
 
             <Section
+              delay={300}
               eyebrow="Visual"
               title={`Carousel — ${result.carousel.title} (${result.carousel.slides.length} slides)`}
             >
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
                 {result.carousel.slides.map((src, i) => (
-                  <div key={i} className="space-y-2">
+                  <div key={i} className="group space-y-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={src}
                       alt={`Slide ${i + 1}`}
-                      className="w-full rounded-xl border border-slate-200 shadow-sm"
+                      className="w-full rounded-xl border border-slate-200 shadow-sm transition duration-300 group-hover:shadow-lg group-hover:-translate-y-0.5"
                     />
                     <a
                       href={src}

@@ -76,13 +76,13 @@ export default function ReelsPage() {
     <div className="flex flex-1 flex-col">
       <Nav />
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
-        <h1 className="text-2xl font-bold text-slate-900">Reel Captions</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <h1 className="animate-fade-up text-2xl font-bold text-slate-900">Reel Captions</h1>
+        <p className="animate-fade-up mt-1 text-sm text-slate-600 [animation-delay:60ms]">
           Paste the transcript/script of a reel clip that&apos;s already been cut (e.g. via Opus
           Clip) to get caption options and hashtags.
         </p>
 
-        <div className="mt-6 space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="animate-fade-up mt-6 space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm [animation-delay:120ms]">
           <Field label="Clip transcript file (.txt)">
             <input
               type="file"
@@ -105,7 +105,9 @@ export default function ReelsPage() {
           <button
             onClick={handleSubmit}
             disabled={loading || transcript.trim().length < 20}
-            className="inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40"
+            className={`inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${
+              loading ? "animate-shimmer" : "bg-brand hover:bg-brand-dark"
+            }`}
           >
             {loading ? (
               <>
@@ -127,12 +129,16 @@ export default function ReelsPage() {
 
         {result ? (
           <div className="mt-8 space-y-5">
-            <div className="rounded-2xl border border-brand/20 bg-brand/5 px-6 py-4">
+            <div className="animate-fade-up rounded-2xl border border-brand/20 bg-brand/5 px-6 py-4">
               <h2 className="text-lg font-bold text-slate-900">{result.clipTopic}</h2>
             </div>
 
             {result.captionVariants.map((v, i) => (
-              <section key={i} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <section
+                key={i}
+                className="animate-fade-up rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+                style={{ animationDelay: `${(i + 1) * 60}ms` }}
+              >
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-brand">{v.style}</h3>
                   <CopyButton text={`${v.caption}\n\n${hashtagsText}`} />
@@ -143,7 +149,10 @@ export default function ReelsPage() {
               </section>
             ))}
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <section
+              className="animate-fade-up rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+              style={{ animationDelay: `${(result.captionVariants.length + 1) * 60}ms` }}
+            >
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-brand">Hashtags</h3>
                 <CopyButton text={hashtagsText} />
