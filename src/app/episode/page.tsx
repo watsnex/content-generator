@@ -31,10 +31,50 @@ function CopyButton({ text }: { text: string }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      className="rounded-md border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+      className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
     >
       {copied ? "Copied!" : "Copy"}
     </button>
+  );
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-800">{label}</label>
+      {hint ? <p className="mt-0.5 text-xs text-slate-500">{hint}</p> : null}
+      <div className="mt-1.5">{children}</div>
+    </div>
+  );
+}
+
+const inputClass =
+  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-brand";
+
+function Section({
+  title,
+  eyebrow,
+  action,
+  children,
+}: {
+  title: React.ReactNode;
+  eyebrow?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          {eyebrow ? (
+            <div className="text-xs font-semibold uppercase tracking-wide text-brand">{eyebrow}</div>
+          ) : null}
+          <h3 className="mt-0.5 text-base font-bold text-slate-900">{title}</h3>
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -77,143 +117,152 @@ export default function EpisodePage() {
       <Nav />
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12">
         <h1 className="text-2xl font-bold text-slate-900">Episode → Content</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Upload or paste the full podcast transcript below.
-        </p>
+        <p className="mt-1 text-sm text-slate-600">Upload or paste the full podcast transcript below.</p>
 
-        <div className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
-          <div>
-            <label className="block text-sm font-medium text-slate-700">
-              Guest name (optional — helps if the transcript doesn&apos;t state it clearly)
-            </label>
+        <div className="mt-6 space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <Field label="Guest name" hint="Optional — helps if the transcript doesn't state it clearly">
             <input
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               placeholder="e.g. Dr. Jane Smith"
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className={inputClass}
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Transcript file (.txt)</label>
+          <Field label="Transcript file (.txt)">
             <input
               type="file"
               accept=".txt,.md,text/plain"
               onChange={handleFile}
-              className="mt-1 block text-sm"
+              className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700">
-              Or paste transcript text
-            </label>
+          <Field label="Or paste transcript text">
             <textarea
               value={transcript}
               onChange={(e) => setTranscript(e.target.value)}
               rows={10}
               placeholder="Paste the full episode transcript here..."
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className={inputClass}
             />
-            <p className="mt-1 text-xs text-slate-500">{transcript.length.toLocaleString()} characters</p>
+            <p className="mt-1.5 text-xs text-slate-400">{transcript.length.toLocaleString()} characters</p>
+          </Field>
+
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              onClick={handleSubmit}
+              disabled={loading || transcript.trim().length < 200}
+              className="inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {loading ? (
+                <>
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                  Generating… this can take a minute
+                </>
+              ) : (
+                "Generate content package"
+              )}
+            </button>
+            {transcript.trim().length > 0 && transcript.trim().length < 200 ? (
+              <span className="text-xs text-slate-400">Add a bit more transcript to generate (min. 200 characters)</span>
+            ) : null}
           </div>
 
-          <button
-            onClick={handleSubmit}
-            disabled={loading || transcript.trim().length < 200}
-            className="rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading ? "Generating content… this can take a minute" : "Generate content package"}
-          </button>
-
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {error ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          ) : null}
         </div>
 
         {result ? (
-          <div className="mt-10 space-y-10">
-            <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <div className="mt-10 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand/20 bg-brand/5 px-6 py-4">
               <h2 className="text-lg font-bold text-slate-900">
                 {result.content.episodeTopic}
                 {result.content.guestName ? (
                   <span className="ml-2 font-normal text-slate-500">with {result.content.guestName}</span>
                 ) : null}
               </h2>
-              <p className="mt-2 text-xs text-slate-500">
-                Keywords used: {result.content.seoKeywordsUsed.join(", ")}
-              </p>
-            </section>
+              <p className="text-xs text-slate-500">Keywords: {result.content.seoKeywordsUsed.join(", ")}</p>
+            </div>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-6">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-slate-900">LinkedIn post</h3>
-                <CopyButton text={result.content.linkedinPost} />
-              </div>
-              <pre className="mt-3 whitespace-pre-wrap font-sans text-sm text-slate-800">
+            <Section eyebrow="Long-form" title="LinkedIn post" action={<CopyButton text={result.content.linkedinPost} />}>
+              <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-700">
                 {result.content.linkedinPost}
               </pre>
-            </section>
+            </Section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-6">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-slate-900">Blog post — {result.content.blogPost.title}</h3>
-                <CopyButton text={`# ${result.content.blogPost.title}\n\n${result.content.blogPost.body}`} />
-              </div>
+            <Section
+              eyebrow="Long-form"
+              title={`Blog post — ${result.content.blogPost.title}`}
+              action={<CopyButton text={`# ${result.content.blogPost.title}\n\n${result.content.blogPost.body}`} />}
+            >
               <p className="mt-1 text-xs italic text-slate-500">{result.content.blogPost.metaDescription}</p>
-              <pre className="mt-3 whitespace-pre-wrap font-sans text-sm text-slate-800">
+              <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-700">
                 {result.content.blogPost.body}
               </pre>
-            </section>
+            </Section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-6">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-slate-900">
-                  Newsletter — {result.content.newsletter.subjectLine}
-                </h3>
-                <CopyButton text={result.content.newsletter.body} />
-              </div>
+            <Section
+              eyebrow="Email"
+              title={`Newsletter — ${result.content.newsletter.subjectLine}`}
+              action={<CopyButton text={result.content.newsletter.body} />}
+            >
               <p className="mt-1 text-xs italic text-slate-500">{result.content.newsletter.previewText}</p>
-              <pre className="mt-3 whitespace-pre-wrap font-sans text-sm text-slate-800">
+              <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-700">
                 {result.content.newsletter.body}
               </pre>
-            </section>
+            </Section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-6">
-              <h3 className="font-bold text-slate-900">Quote postcards ({result.postcards.length})</h3>
+            <Section eyebrow="Visual" title={`Quote postcards (${result.postcards.length})`}>
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
                 {result.postcards.map((q, i) => (
                   <div key={i} className="space-y-2">
-                    <img src={q.image} alt={q.text} className="w-full rounded-lg border border-slate-200" />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={q.image}
+                      alt={q.text}
+                      className="w-full rounded-xl border border-slate-200 shadow-sm"
+                    />
                     <a
                       href={q.image}
                       download={`postcard-${i + 1}.png`}
-                      className="block text-center text-xs font-medium text-blue-700 underline"
+                      className="block text-center text-xs font-medium text-brand hover:underline"
                     >
                       Download PNG
                     </a>
                   </div>
                 ))}
               </div>
-            </section>
+            </Section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-6">
-              <h3 className="font-bold text-slate-900">
-                Carousel — {result.carousel.title} ({result.carousel.slides.length} slides)
-              </h3>
+            <Section
+              eyebrow="Visual"
+              title={`Carousel — ${result.carousel.title} (${result.carousel.slides.length} slides)`}
+            >
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
                 {result.carousel.slides.map((src, i) => (
                   <div key={i} className="space-y-2">
-                    <img src={src} alt={`Slide ${i + 1}`} className="w-full rounded-lg border border-slate-200" />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={src}
+                      alt={`Slide ${i + 1}`}
+                      className="w-full rounded-xl border border-slate-200 shadow-sm"
+                    />
                     <a
                       href={src}
                       download={`carousel-slide-${i + 1}.png`}
-                      className="block text-center text-xs font-medium text-blue-700 underline"
+                      className="block text-center text-xs font-medium text-brand hover:underline"
                     >
                       Download PNG
                     </a>
                   </div>
                 ))}
               </div>
-            </section>
+            </Section>
           </div>
         ) : null}
       </main>

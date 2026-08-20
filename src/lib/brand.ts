@@ -61,10 +61,20 @@ export function getBrand(): BrandConfig {
   }
 }
 
-export function saveBrand(brand: BrandConfig): void {
-  const dir = path.dirname(BRAND_CONFIG_PATH);
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(BRAND_CONFIG_PATH, JSON.stringify(brand, null, 2), "utf-8");
+/**
+ * Persists brand config to disk. Returns false (without throwing) when the
+ * filesystem is read-only, e.g. on Vercel/serverless — the write is a no-op
+ * there since there's no writable, persistent disk outside local/self-hosted use.
+ */
+export function saveBrand(brand: BrandConfig): boolean {
+  try {
+    const dir = path.dirname(BRAND_CONFIG_PATH);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(BRAND_CONFIG_PATH, JSON.stringify(brand, null, 2), "utf-8");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 const LOGO_MIME_BY_EXT: Record<string, string> = {
