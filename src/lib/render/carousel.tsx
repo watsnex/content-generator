@@ -1,7 +1,7 @@
 import type { BrandConfig } from "../brand";
 import type { CarouselSlide } from "../schemas";
 import { renderToPng } from "./toPng";
-import { LogoMark, BrandFooter, WordMark } from "./branding";
+import { LogoMark, LogoBadge, BrandFooter, BrandFooterLight, WordMark } from "./branding";
 
 const SIZE = 1080;
 
@@ -102,22 +102,38 @@ function BodySlide({
         <div
           style={{
             display: "flex",
-            color: brand.colors.primary,
-            fontSize: 22,
-            fontWeight: 800,
-          }}
-        >
-          {brand.companyName}
-        </div>
-        <div
-          style={{
-            display: "flex",
             color: brand.colors.muted,
             fontSize: 22,
             fontWeight: 700,
           }}
         >
-          {String(index).padStart(2, "0")}/{String(total).padStart(2, "0")}
+          {String(index).padStart(2, "0")} / {String(total).padStart(2, "0")}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+            <div
+              style={{
+                display: "flex",
+                color: brand.colors.primary,
+                fontFamily: "Inter",
+                fontSize: 22,
+                fontWeight: 800,
+              }}
+            >
+              {brand.companyName}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                color: brand.colors.muted,
+                fontFamily: "Inter",
+                fontSize: 15,
+              }}
+            >
+              {brand.productLine}
+            </div>
+          </div>
+          <LogoBadge brand={brand} size={52} />
         </div>
       </div>
 
@@ -135,9 +151,11 @@ function BodySlide({
           style={{
             display: "flex",
             color: brand.colors.text,
-            fontSize: 46,
+            fontSize: 52,
             fontWeight: 800,
-            lineHeight: 1.2,
+            lineHeight: 1.15,
+            textTransform: "uppercase",
+            letterSpacing: -0.5,
           }}
         >
           {slide.heading}
@@ -155,23 +173,7 @@ function BodySlide({
         </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          width: "100%",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingTop: 24,
-          borderTop: `2px solid ${brand.colors.primary}22`,
-        }}
-      >
-        <div style={{ display: "flex", color: brand.colors.muted, fontSize: 20, fontWeight: 600 }}>
-          {brand.website}
-        </div>
-        <div style={{ display: "flex", color: brand.colors.muted, fontSize: 20, fontWeight: 400 }}>
-          @{brand.socialHandle}
-        </div>
-      </div>
+      <BrandFooterLight brand={brand} />
     </div>
   );
 }
