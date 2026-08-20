@@ -45,9 +45,10 @@ export async function POST(req: NextRequest) {
         : current.seoKeywords,
     };
 
-    saveBrand(next);
+    const persisted = saveBrand(next);
 
     const logoFile = form.get("logo") as File | null;
+    let logoPersisted = true;
     if (logoFile && logoFile.size > 0) {
       const ext = ALLOWED_LOGO_TYPES[logoFile.type];
       if (!ext) {
@@ -56,17 +57,21 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
-      const brandDir = path.join(process.cwd(), "public", "brand");
-      fs.mkdirSync(brandDir, { recursive: true });
-      for (const existingExt of Object.values(ALLOWED_LOGO_TYPES)) {
-        const existing = path.join(brandDir, `logo${existingExt}`);
-        if (fs.existsSync(existing)) fs.unlinkSync(existing);
+      try {
+        const brandDir = path.join(process.cwd(), "public", "brand");
+        fs.mkdirSync(brandDir, { recursive: true });
+        for (const existingExt of Object.values(ALLOWED_LOGO_TYPES)) {
+          const existing = path.join(brandDir, `logo${existingExt}`);
+          if (fs.existsSync(existing)) fs.unlinkSync(existing);
+        }
+        const buf = Buffer.from(await logoFile.arrayBuffer());
+        fs.writeFileSync(path.join(brandDir, `logo${ext}`), buf);
+      } catch {
+        logoPersisted = false;
       }
-      const buf = Buffer.from(await logoFile.arrayBuffer());
-      fs.writeFileSync(path.join(brandDir, `logo${ext}`), buf);
     }
 
-    return NextResponse.json({ brand: next });
+    return NextResponse.json({ brand: next, persisted: persisted && logoPersisted });
   } catch (err) {
     console.error(err);
     const message = err instanceof Error ? err.message : "Unknown error";
