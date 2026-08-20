@@ -129,8 +129,18 @@ export default function ReelsPage() {
 
         {result ? (
           <div className="mt-8 space-y-5">
-            <div className="animate-fade-up rounded-2xl border border-brand/20 bg-brand/5 px-6 py-4">
+            <div className="animate-fade-up rounded-2xl border border-brand/20 bg-brand/5 px-6 py-5">
               <h2 className="text-lg font-bold text-slate-900">{result.clipTopic}</h2>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <div className="flex items-center gap-1.5 rounded-full border border-brand/20 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+                  <span className="font-bold text-brand">{result.captionVariants.length}</span>
+                  caption options
+                </div>
+                <div className="flex items-center gap-1.5 rounded-full border border-brand/20 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+                  <span className="font-bold text-brand">{result.hashtags.length}</span>
+                  hashtags
+                </div>
+              </div>
             </div>
 
             {result.captionVariants.map((v, i) => (

@@ -188,14 +188,37 @@ export default function EpisodePage() {
 
         {result ? (
           <div className="mt-10 space-y-6">
-            <div className="animate-fade-up flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand/20 bg-brand/5 px-6 py-4">
-              <h2 className="text-lg font-bold text-slate-900">
-                {result.content.episodeTopic}
-                {result.content.guestName ? (
-                  <span className="ml-2 font-normal text-slate-500">with {result.content.guestName}</span>
-                ) : null}
-              </h2>
-              <p className="text-xs text-slate-500">Keywords: {result.content.seoKeywordsUsed.join(", ")}</p>
+            <div className="animate-fade-up rounded-2xl border border-brand/20 bg-brand/5 px-6 py-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-bold text-slate-900">
+                  {result.content.episodeTopic}
+                  {result.content.guestName ? (
+                    <span className="ml-2 font-normal text-slate-500">with {result.content.guestName}</span>
+                  ) : null}
+                </h2>
+                <p className="text-xs text-slate-500">Keywords: {result.content.seoKeywordsUsed.join(", ")}</p>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {[
+                  ["LinkedIn post", 1],
+                  ["Blog post", 1],
+                  ["Newsletter", 1],
+                  ["Quote postcards", result.postcards.length],
+                  ["Carousel slides", result.carousel.slides.length],
+                ].map(([label, count]) => (
+                  <div
+                    key={label as string}
+                    className="flex items-center gap-1.5 rounded-full border border-brand/20 bg-white px-3 py-1 text-xs font-medium text-slate-700"
+                  >
+                    <span className="font-bold text-brand">{count}</span>
+                    {label}
+                  </div>
+                ))}
+                <div className="flex items-center gap-1.5 rounded-full bg-brand px-3 py-1 text-xs font-semibold text-white">
+                  {3 + result.postcards.length + result.carousel.slides.length} pieces from one transcript
+                </div>
+              </div>
             </div>
 
             <Section
