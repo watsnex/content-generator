@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Nav } from "@/components/Nav";
 import { savePersisted, loadPersisted, clearPersisted } from "@/lib/persist";
+import { logHistoryEntry } from "@/lib/history";
 
 const STORAGE_KEY = "wcg:episodeResult";
 
@@ -128,6 +129,18 @@ export default function EpisodePage() {
       if (!res.ok) throw new Error(data.error || "Generation failed");
       setResult(data);
       savePersisted(STORAGE_KEY, data);
+      logHistoryEntry({
+        kind: "episode",
+        topic: data.content.episodeTopic,
+        guestName: data.content.guestName,
+        counts: {
+          linkedinPosts: 1,
+          blogPosts: 1,
+          newsletters: 1,
+          postcards: data.postcards.length,
+          carouselSlides: data.carousel.slides.length,
+        },
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {

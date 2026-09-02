@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Nav } from "@/components/Nav";
 import { savePersisted, loadPersisted, clearPersisted } from "@/lib/persist";
+import { logHistoryEntry } from "@/lib/history";
 
 const STORAGE_KEY = "wcg:reelsResult";
 
@@ -80,6 +81,15 @@ export default function ReelsPage() {
       if (!res.ok) throw new Error(data.error || "Generation failed");
       setResult(data);
       savePersisted(STORAGE_KEY, data);
+      logHistoryEntry({
+        kind: "reel",
+        topic: data.clipTopic,
+        counts: {
+          captionSets: 1,
+          captionOptions: data.captionVariants.length,
+          hashtagSets: 1,
+        },
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
