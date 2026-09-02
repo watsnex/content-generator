@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Nav } from "@/components/Nav";
+import { ActivitySummary } from "@/components/ActivitySummary";
 
 export default function Home() {
   return (
@@ -64,6 +65,8 @@ export default function Home() {
               </div>
             </Link>
           </div>
+
+          <ActivitySummary />
         </div>
       </main>
     </div>
