@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { Nav } from "@/components/Nav";
+import { savePersisted, loadPersisted, clearPersisted } from "@/lib/persist";
+
+const STORAGE_KEY = "wcg:episodeResult";
 
 interface Quote {
   text: string;
@@ -88,7 +91,20 @@ export default function EpisodePage() {
   const [guestName, setGuestName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<EpisodeResult | null>(null);
+  const [result, setResult] = useState<EpisodeResult | null>(
+    () => loadPersisted<EpisodeResult>(STORAGE_KEY)?.data ?? null,
+  );
+  const [restoredAt, setRestoredAt] = useState<number | null>(
+    () => loadPersisted<EpisodeResult>(STORAGE_KEY)?.savedAt ?? null,
+  );
+
+  function startNew() {
+    setResult(null);
+    setRestoredAt(null);
+    setTranscript("");
+    setGuestName("");
+    clearPersisted(STORAGE_KEY);
+  }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -101,6 +117,7 @@ export default function EpisodePage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setRestoredAt(null);
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -110,6 +127,7 @@ export default function EpisodePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Generation failed");
       setResult(data);
+      savePersisted(STORAGE_KEY, data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -188,6 +206,27 @@ export default function EpisodePage() {
 
         {result ? (
           <div className="mt-10 space-y-6">
+            {restoredAt ? (
+              <div className="animate-fade-in flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-500">
+                <span>
+                  Showing your last generated package (saved{" "}
+                  {new Date(restoredAt).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                  ) — kept in your browser so switching tabs doesn&apos;t lose it or cost another generation.
+                </span>
+                <button
+                  onClick={startNew}
+                  className="shrink-0 font-medium text-brand hover:underline"
+                >
+                  Start new
+                </button>
+              </div>
+            ) : null}
+
             <div className="animate-fade-up rounded-2xl border border-brand/20 bg-brand/5 px-6 py-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-bold text-slate-900">
@@ -196,7 +235,14 @@ export default function EpisodePage() {
                     <span className="ml-2 font-normal text-slate-500">with {result.content.guestName}</span>
                   ) : null}
                 </h2>
-                <p className="text-xs text-slate-500">Keywords: {result.content.seoKeywordsUsed.join(", ")}</p>
+                <div className="flex items-center gap-3">
+                  <p className="text-xs text-slate-500">Keywords: {result.content.seoKeywordsUsed.join(", ")}</p>
+                  {!restoredAt ? (
+                    <button onClick={startNew} className="shrink-0 text-xs font-medium text-brand hover:underline">
+                      Start new
+                    </button>
+                  ) : null}
+                </div>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
