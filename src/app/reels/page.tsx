@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { Nav } from "@/components/Nav";
+import { savePersisted, loadPersisted, clearPersisted } from "@/lib/persist";
+
+const STORAGE_KEY = "wcg:reelsResult";
 
 interface CaptionsResult {
   clipTopic: string;
@@ -41,7 +44,19 @@ export default function ReelsPage() {
   const [transcript, setTranscript] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<CaptionsResult | null>(null);
+  const [result, setResult] = useState<CaptionsResult | null>(
+    () => loadPersisted<CaptionsResult>(STORAGE_KEY)?.data ?? null,
+  );
+  const [restoredAt, setRestoredAt] = useState<number | null>(
+    () => loadPersisted<CaptionsResult>(STORAGE_KEY)?.savedAt ?? null,
+  );
+
+  function startNew() {
+    setResult(null);
+    setRestoredAt(null);
+    setTranscript("");
+    clearPersisted(STORAGE_KEY);
+  }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -54,6 +69,7 @@ export default function ReelsPage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setRestoredAt(null);
     try {
       const res = await fetch("/api/captions", {
         method: "POST",
@@ -63,6 +79,7 @@ export default function ReelsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Generation failed");
       setResult(data);
+      savePersisted(STORAGE_KEY, data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -129,8 +146,33 @@ export default function ReelsPage() {
 
         {result ? (
           <div className="mt-8 space-y-5">
+            {restoredAt ? (
+              <div className="animate-fade-in flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-500">
+                <span>
+                  Showing your last generated captions (saved{" "}
+                  {new Date(restoredAt).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                  ) — kept in your browser so switching tabs doesn&apos;t lose it or cost another generation.
+                </span>
+                <button onClick={startNew} className="shrink-0 font-medium text-brand hover:underline">
+                  Start new
+                </button>
+              </div>
+            ) : null}
+
             <div className="animate-fade-up rounded-2xl border border-brand/20 bg-brand/5 px-6 py-5">
-              <h2 className="text-lg font-bold text-slate-900">{result.clipTopic}</h2>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-bold text-slate-900">{result.clipTopic}</h2>
+                {!restoredAt ? (
+                  <button onClick={startNew} className="shrink-0 text-xs font-medium text-brand hover:underline">
+                    Start new
+                  </button>
+                ) : null}
+              </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <div className="flex items-center gap-1.5 rounded-full border border-brand/20 bg-white px-3 py-1 text-xs font-medium text-slate-700">
                   <span className="font-bold text-brand">{result.captionVariants.length}</span>
