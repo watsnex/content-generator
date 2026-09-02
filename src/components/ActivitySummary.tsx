@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getHistoryEntries, getHistoryTotals, clearHistory, type HistoryEntry } from "@/lib/history";
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -28,6 +28,24 @@ function timeAgo(ms: number): string {
 export function ActivitySummary() {
   const [entries, setEntries] = useState<HistoryEntry[]>(() => getHistoryEntries());
   const [totals, setTotals] = useState<Record<string, number>>(() => getHistoryTotals());
+
+  useEffect(() => {
+    // A generation in another tab (e.g. /episode) writes to localStorage but doesn't
+    // touch this tab's React state — re-read whenever that happens, or whenever this
+    // tab regains focus (covers cached/backgrounded tabs missing the storage event).
+    function refresh() {
+      setEntries(getHistoryEntries());
+      setTotals(getHistoryTotals());
+    }
+    window.addEventListener("storage", refresh);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
 
   if (entries.length === 0) return null;
 
