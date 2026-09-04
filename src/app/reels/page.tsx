@@ -9,6 +9,8 @@ const STORAGE_KEY = "wcg:reelsResult";
 
 interface CaptionsResult {
   clipTopic: string;
+  guestName: string | null;
+  guestCompany: string | null;
   captionVariants: { style: string; caption: string }[];
   hashtags: string[];
 }
@@ -176,7 +178,15 @@ export default function ReelsPage() {
 
             <div className="animate-fade-up rounded-2xl border border-brand/20 bg-brand/5 px-6 py-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-lg font-bold text-slate-900">{result.clipTopic}</h2>
+                <h2 className="text-lg font-bold text-slate-900">
+                  {result.clipTopic}
+                  {result.guestName ? (
+                    <span className="ml-2 font-normal text-slate-500">
+                      with {result.guestName}
+                      {result.guestCompany ? `, ${result.guestCompany}` : ""}
+                    </span>
+                  ) : null}
+                </h2>
                 {!restoredAt ? (
                   <button onClick={startNew} className="shrink-0 text-xs font-medium text-brand hover:underline">
                     Start new

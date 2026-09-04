@@ -13,12 +13,33 @@ export const CarouselSlideSchema = z.object({
   body: z.string().describe("1-3 sentences of supporting text for this slide"),
 });
 
+export const LinkedInShortPostSchema = z.object({
+  angle: z
+    .string()
+    .describe("The angle for this variant: one of 'Story', 'POV', or 'Quick insight'"),
+  post: z
+    .string()
+    .describe(
+      "A complete, ready-to-publish short-form LinkedIn post, 80-150 words: strong hook first line, native formatting with line breaks, ends with relevant hashtags.",
+    ),
+});
+
 export const EpisodeContentSchema = z.object({
   guestName: z.string().nullable().describe("Detected guest name(s) from the transcript, or null if not identifiable"),
+  guestCompany: z
+    .string()
+    .nullable()
+    .describe("Guest's company/organization if stated or clearly inferable from the transcript, or null"),
   episodeTopic: z.string().describe("One-line topic/title summarizing the episode"),
   linkedinPost: z
     .string()
     .describe("A complete, ready-to-publish LinkedIn long-form post: strong hook first line, well-formatted with line breaks, ends with a call to action and relevant hashtags."),
+  linkedinShortPosts: z
+    .array(LinkedInShortPostSchema)
+    .length(3)
+    .describe(
+      "Exactly 3 additional short-form LinkedIn posts (distinct from the long-form one and from each other), one per angle: a 'Story' post telling a small narrative/anecdote from the episode, a 'POV' post staking out a clear opinion/stance in the company's voice, and a 'Quick insight' post delivering one sharp, tweet-length-adjacent takeaway. All still grounded strictly in the transcript.",
+    ),
   blogPost: z.object({
     title: z.string().describe("SEO-optimized blog title"),
     metaDescription: z.string().describe("SEO meta description, under 160 characters"),
@@ -56,12 +77,23 @@ export const CaptionVariantSchema = z.object({
 
 export const ReelCaptionsSchema = z.object({
   clipTopic: z.string().describe("One-line summary of what this reel clip is about"),
+  guestName: z.string().nullable().describe("Speaker/guest name if stated or clearly identifiable in the clip, else null"),
+  guestCompany: z
+    .string()
+    .nullable()
+    .describe("Guest's company/organization if stated or clearly inferable from the clip, or null"),
   captionVariants: z
     .array(CaptionVariantSchema)
     .min(3)
     .max(3)
     .describe("3 distinct caption options for the same clip"),
-  hashtags: z.array(z.string()).min(8).max(15).describe("Mix of broad industry and niche hashtags, without the # symbol"),
+  hashtags: z
+    .array(z.string())
+    .min(8)
+    .max(15)
+    .describe(
+      "Mix of broad industry and niche hashtags, without the # symbol. Must include one derived from the guest's name and, if known, one from their company (e.g. 'janesmith', 'acmepharma') so the post surfaces in their own network's searches.",
+    ),
 });
 
 export type ReelCaptions = z.infer<typeof ReelCaptionsSchema>;
