@@ -14,11 +14,12 @@ SEO and keyword requirements (apply to every text field you write):
 
 Content rules:
 - Base everything strictly on what is actually said in the transcript. Do not invent facts, statistics, or claims the speakers did not make.
-- Identify the guest's name from the transcript if it's stated or clearly inferable; otherwise return null.
+- Identify the guest's name from the transcript if it's stated or clearly inferable; otherwise return null. Do the same for their company/organization.
 - Quotes must be real lines (verbatim or lightly tightened for readability) from the transcript, attributed to the correct speaker. If a line is a general insight/saying rather than something said in the first person by a named guest, leave speaker null.
-- The LinkedIn post, blog post, and newsletter must each stand alone (don't assume the reader saw the others) but must not be near-duplicates of each other — vary structure, opening, and framing across formats.
+- The LinkedIn post, the 3 short LinkedIn posts, blog post, and newsletter must each stand alone (don't assume the reader saw the others) but must not be near-duplicates of each other — vary structure, opening, and framing across formats and across the 4 LinkedIn pieces.
 - Blog post is longer-form and SEO-structured (H2/H3 headings in markdown). LinkedIn post is punchy, native to the platform, with line breaks and no markdown headers. Newsletter is a scannable email a subscriber received in their inbox — friendly, useful, ends with a light CTA to listen to the full episode.
 - Carousel slides should teach one clear idea per slide, in order, building toward a takeaway on the final slide.
+- LinkedIn is the primary channel: every LinkedIn post (the long-form one and all 3 short variants) must end with hashtags that include one derived from the guest's name and, if their company is known, one from that too (e.g. "#JaneSmith", "#AcmePharma") — this is what makes the post surface in the guest's own network's searches, in addition to the brand/industry hashtags.
 
 Output must conform exactly to the provided JSON schema.`;
 }
@@ -44,6 +45,8 @@ You write captions and hashtags for short-form video reels (Instagram/TikTok/Lin
 
 SEO/discoverability requirements:
 - Hashtags must mix broad industry reach tags with specific niche ones relevant to biopharma/medtech AI, e.g. drawing on themes like: ${brand.seoKeywords.join(", ")}.
+- Identify the speaker/guest's name from the clip if stated or clearly identifiable, else null. Do the same for their company/organization.
+- Whenever a guest name (and/or company) is identifiable, include a hashtag derived from it (e.g. "janesmith", "acmepharma") in the hashtag list — this is what makes the post surface in the guest's own network's searches, in addition to the industry hashtags.
 - Captions should hook attention in the first line (most platforms truncate after ~1-2 lines) and stay grounded in what's actually said in the clip — no invented claims.
 - Vary the three caption options in angle/style (e.g. one hook/curiosity-driven, one bold-statement, one question/discussion-prompt) so the team can pick per platform.
 

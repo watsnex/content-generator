@@ -13,11 +13,18 @@ interface Quote {
   image: string;
 }
 
+interface LinkedInShortPost {
+  angle: string;
+  post: string;
+}
+
 interface EpisodeResult {
   content: {
     guestName: string | null;
+    guestCompany: string | null;
     episodeTopic: string;
     linkedinPost: string;
+    linkedinShortPosts: LinkedInShortPost[];
     blogPost: { title: string; metaDescription: string; body: string };
     newsletter: { subjectLine: string; previewText: string; body: string };
     seoKeywordsUsed: string[];
@@ -134,7 +141,7 @@ export default function EpisodePage() {
         topic: data.content.episodeTopic,
         guestName: data.content.guestName,
         counts: {
-          linkedinPosts: 1,
+          linkedinPosts: 1 + data.content.linkedinShortPosts.length,
           blogPosts: 1,
           newsletters: 1,
           postcards: data.postcards.length,
@@ -245,7 +252,10 @@ export default function EpisodePage() {
                 <h2 className="text-lg font-bold text-slate-900">
                   {result.content.episodeTopic}
                   {result.content.guestName ? (
-                    <span className="ml-2 font-normal text-slate-500">with {result.content.guestName}</span>
+                    <span className="ml-2 font-normal text-slate-500">
+                      with {result.content.guestName}
+                      {result.content.guestCompany ? `, ${result.content.guestCompany}` : ""}
+                    </span>
                   ) : null}
                 </h2>
                 <div className="flex items-center gap-3">
@@ -260,7 +270,7 @@ export default function EpisodePage() {
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {[
-                  ["LinkedIn post", 1],
+                  ["LinkedIn posts", 1 + result.content.linkedinShortPosts.length],
                   ["Blog post", 1],
                   ["Newsletter", 1],
                   ["Quote postcards", result.postcards.length],
@@ -275,20 +285,42 @@ export default function EpisodePage() {
                   </div>
                 ))}
                 <div className="flex items-center gap-1.5 rounded-full bg-brand px-3 py-1 text-xs font-semibold text-white">
-                  {3 + result.postcards.length + result.carousel.slides.length} pieces from one transcript
+                  {3 +
+                    result.content.linkedinShortPosts.length +
+                    result.postcards.length +
+                    result.carousel.slides.length}{" "}
+                  pieces from one transcript
                 </div>
               </div>
             </div>
 
             <Section
               delay={60}
-              eyebrow="Long-form"
-              title="LinkedIn post"
+              eyebrow="Long-form · LinkedIn"
+              title="Long-form post"
               action={<CopyButton text={result.content.linkedinPost} />}
             >
               <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-700">
                 {result.content.linkedinPost}
               </pre>
+            </Section>
+
+            <Section delay={90} eyebrow="Short-form · LinkedIn" title="3 more ways to post this">
+              <div className="mt-3 space-y-4">
+                {result.content.linkedinShortPosts.map((variant, i) => (
+                  <div key={i} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-brand">
+                        {variant.angle}
+                      </span>
+                      <CopyButton text={variant.post} />
+                    </div>
+                    <pre className="mt-2 whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-700">
+                      {variant.post}
+                    </pre>
+                  </div>
+                ))}
+              </div>
             </Section>
 
             <Section
