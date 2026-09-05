@@ -41,20 +41,16 @@ export function getHistoryEntries(): HistoryEntry[] {
   return readAll();
 }
 
-export function getHistoryTotals(): Record<string, number> {
-  const totals: Record<string, number> = {};
-  for (const entry of readAll()) {
-    for (const [format, count] of Object.entries(entry.counts)) {
-      totals[format] = (totals[format] ?? 0) + count;
-    }
-  }
-  return totals;
-}
-
-export function clearHistory(): void {
+/** Clears the whole log, or only entries of one kind (leaving the other kind's log intact). */
+export function clearHistory(kind?: HistoryEntry["kind"]): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.removeItem(HISTORY_KEY);
+    if (!kind) {
+      window.localStorage.removeItem(HISTORY_KEY);
+      return;
+    }
+    const remaining = readAll().filter((e) => e.kind !== kind);
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(remaining));
   } catch {
     // ignore
   }
