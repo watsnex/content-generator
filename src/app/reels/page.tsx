@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Nav } from "@/components/Nav";
+import { ActivitySummary } from "@/components/ActivitySummary";
 import { savePersisted, loadPersisted, clearPersisted } from "@/lib/persist";
 import { logHistoryEntry } from "@/lib/history";
 
@@ -233,6 +234,8 @@ export default function ReelsPage() {
             </section>
           </div>
         ) : null}
+
+        <ActivitySummary />
       </main>
     </div>
   );
