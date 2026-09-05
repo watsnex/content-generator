@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Nav } from "@/components/Nav";
 import { ActivitySummary } from "@/components/ActivitySummary";
 import { savePersisted, loadPersisted, clearPersisted } from "@/lib/persist";
@@ -106,12 +106,18 @@ export default function EpisodePage() {
   const [restoredAt, setRestoredAt] = useState<number | null>(
     () => loadPersisted<EpisodeResult>(STORAGE_KEY)?.savedAt ?? null,
   );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function clearInputs() {
+    setTranscript("");
+    setGuestName("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   function startNew() {
     setResult(null);
     setRestoredAt(null);
-    setTranscript("");
-    setGuestName("");
+    clearInputs();
     clearPersisted(STORAGE_KEY);
   }
 
@@ -149,6 +155,7 @@ export default function EpisodePage() {
           carouselSlides: data.carousel.slides.length,
         },
       });
+      clearInputs();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -177,6 +184,7 @@ export default function EpisodePage() {
 
           <Field label="Transcript file (.txt)">
             <input
+              ref={fileInputRef}
               type="file"
               accept=".txt,.md,text/plain"
               onChange={handleFile}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Nav } from "@/components/Nav";
 import { ActivitySummary } from "@/components/ActivitySummary";
 import { savePersisted, loadPersisted, clearPersisted } from "@/lib/persist";
@@ -55,10 +55,17 @@ export default function ReelsPage() {
     () => loadPersisted<CaptionsResult>(STORAGE_KEY)?.savedAt ?? null,
   );
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function clearInputs() {
+    setTranscript("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   function startNew() {
     setResult(null);
     setRestoredAt(null);
-    setTranscript("");
+    clearInputs();
     clearPersisted(STORAGE_KEY);
   }
 
@@ -93,6 +100,7 @@ export default function ReelsPage() {
           hashtagSets: 1,
         },
       });
+      clearInputs();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -115,6 +123,7 @@ export default function ReelsPage() {
         <div className="animate-fade-up mt-6 space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm [animation-delay:120ms]">
           <Field label="Clip transcript file (.txt)">
             <input
+              ref={fileInputRef}
               type="file"
               accept=".txt,.md,text/plain"
               onChange={handleFile}
