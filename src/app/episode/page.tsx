@@ -34,6 +34,36 @@ interface EpisodeResult {
   carousel: { title: string; slides: string[] };
 }
 
+/**
+ * Guards against a stale localStorage entry saved by an older version of the app
+ * that predates a schema change (e.g. before linkedinShortPosts existed) — rendering
+ * that shape directly would throw (undefined.length / undefined.map) and crash the
+ * page. If the cached shape doesn't match what the current UI expects, treat it as
+ * if nothing was saved rather than risk a crash.
+ */
+function isValidEpisodeResult(data: unknown): data is EpisodeResult {
+  if (!data || typeof data !== "object") return false;
+  const d = data as Partial<EpisodeResult>;
+  return (
+    !!d.content &&
+    typeof d.content.linkedinPost === "string" &&
+    Array.isArray(d.content.linkedinShortPosts) &&
+    Array.isArray(d.postcards) &&
+    !!d.carousel &&
+    Array.isArray(d.carousel.slides)
+  );
+}
+
+function loadValidEpisodeResult() {
+  const saved = loadPersisted<EpisodeResult>(STORAGE_KEY);
+  if (!saved) return null;
+  if (!isValidEpisodeResult(saved.data)) {
+    clearPersisted(STORAGE_KEY);
+    return null;
+  }
+  return saved;
+}
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -100,11 +130,9 @@ export default function EpisodePage() {
   const [guestName, setGuestName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<EpisodeResult | null>(
-    () => loadPersisted<EpisodeResult>(STORAGE_KEY)?.data ?? null,
-  );
+  const [result, setResult] = useState<EpisodeResult | null>(() => loadValidEpisodeResult()?.data ?? null);
   const [restoredAt, setRestoredAt] = useState<number | null>(
-    () => loadPersisted<EpisodeResult>(STORAGE_KEY)?.savedAt ?? null,
+    () => loadValidEpisodeResult()?.savedAt ?? null,
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
