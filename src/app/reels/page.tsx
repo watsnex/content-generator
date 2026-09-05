@@ -16,6 +16,32 @@ interface CaptionsResult {
   hashtags: string[];
 }
 
+/**
+ * Guards against a stale localStorage entry saved by an older version of the app
+ * that predates a schema change — rendering an incompatible shape could throw and
+ * crash the page. If the cached shape doesn't match what the current UI expects,
+ * treat it as if nothing was saved rather than risk a crash.
+ */
+function isValidCaptionsResult(data: unknown): data is CaptionsResult {
+  if (!data || typeof data !== "object") return false;
+  const d = data as Partial<CaptionsResult>;
+  return (
+    typeof d.clipTopic === "string" &&
+    Array.isArray(d.captionVariants) &&
+    Array.isArray(d.hashtags)
+  );
+}
+
+function loadValidCaptionsResult() {
+  const saved = loadPersisted<CaptionsResult>(STORAGE_KEY);
+  if (!saved) return null;
+  if (!isValidCaptionsResult(saved.data)) {
+    clearPersisted(STORAGE_KEY);
+    return null;
+  }
+  return saved;
+}
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -48,11 +74,9 @@ export default function ReelsPage() {
   const [transcript, setTranscript] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<CaptionsResult | null>(
-    () => loadPersisted<CaptionsResult>(STORAGE_KEY)?.data ?? null,
-  );
+  const [result, setResult] = useState<CaptionsResult | null>(() => loadValidCaptionsResult()?.data ?? null);
   const [restoredAt, setRestoredAt] = useState<number | null>(
-    () => loadPersisted<CaptionsResult>(STORAGE_KEY)?.savedAt ?? null,
+    () => loadValidCaptionsResult()?.savedAt ?? null,
   );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
