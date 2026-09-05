@@ -268,7 +268,7 @@ export default function ReelsPage() {
           </div>
         ) : null}
 
-        <ActivitySummary />
+        <ActivitySummary filterKind="reel" />
       </main>
     </div>
   );

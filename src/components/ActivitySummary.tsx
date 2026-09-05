@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getHistoryEntries, getHistoryTotals, clearHistory, type HistoryEntry } from "@/lib/history";
+import { getHistoryEntries, clearHistory, type HistoryEntry } from "@/lib/history";
 
 const FORMAT_LABELS: Record<string, string> = {
   linkedinPosts: "LinkedIn posts",
@@ -14,6 +14,11 @@ const FORMAT_LABELS: Record<string, string> = {
 };
 const FORMAT_ORDER = Object.keys(FORMAT_LABELS);
 
+const TITLES: Record<string, string> = {
+  episode: "Episode activity",
+  reel: "Reel activity",
+};
+
 function timeAgo(ms: number): string {
   const diff = Date.now() - ms;
   const mins = Math.round(diff / 60000);
@@ -25,17 +30,15 @@ function timeAgo(ms: number): string {
   return `${days}d ago`;
 }
 
-export function ActivitySummary() {
-  const [entries, setEntries] = useState<HistoryEntry[]>(() => getHistoryEntries());
-  const [totals, setTotals] = useState<Record<string, number>>(() => getHistoryTotals());
+export function ActivitySummary({ filterKind }: { filterKind?: HistoryEntry["kind"] } = {}) {
+  const [allEntries, setAllEntries] = useState<HistoryEntry[]>(() => getHistoryEntries());
 
   useEffect(() => {
     // A generation in another tab (e.g. /episode) writes to localStorage but doesn't
     // touch this tab's React state — re-read whenever that happens, or whenever this
     // tab regains focus (covers cached/backgrounded tabs missing the storage event).
     function refresh() {
-      setEntries(getHistoryEntries());
-      setTotals(getHistoryTotals());
+      setAllEntries(getHistoryEntries());
     }
     window.addEventListener("storage", refresh);
     window.addEventListener("focus", refresh);
@@ -47,19 +50,26 @@ export function ActivitySummary() {
     };
   }, []);
 
+  const entries = filterKind ? allEntries.filter((e) => e.kind === filterKind) : allEntries;
   if (entries.length === 0) return null;
 
+  const totals: Record<string, number> = {};
+  for (const entry of entries) {
+    for (const [format, count] of Object.entries(entry.counts)) {
+      totals[format] = (totals[format] ?? 0) + count;
+    }
+  }
+
   function handleClear() {
-    clearHistory();
-    setEntries([]);
-    setTotals({});
+    clearHistory(filterKind);
+    setAllEntries(getHistoryEntries());
   }
 
   return (
     <div className="animate-fade-up mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm [animation-delay:300ms]">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-bold text-slate-900">Activity</h2>
+          <h2 className="text-sm font-bold text-slate-900">{filterKind ? TITLES[filterKind] : "Activity"}</h2>
           <p className="mt-0.5 text-xs text-slate-500">
             {entries.length} generation{entries.length === 1 ? "" : "s"} on this device — kept locally,
             never sent anywhere.

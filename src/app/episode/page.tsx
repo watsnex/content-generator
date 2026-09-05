@@ -434,7 +434,7 @@ export default function EpisodePage() {
           </div>
         ) : null}
 
-        <ActivitySummary />
+        <ActivitySummary filterKind="episode" />
       </main>
     </div>
   );
