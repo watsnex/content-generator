@@ -109,6 +109,91 @@ src/
     render/                      Satori/resvg image templates (postcard, carousel)
 ```
 
+## Calendar → Airtable agent
+
+Watches the WATSNEX Google Calendar and makes sure every client you have a meeting with is in the
+Airtable **Lead Tracking → CRM** table. No n8n/Zapier workflow needed.
+
+### What it does on each run
+
+1. Pulls calendar events created or changed since the last run.
+2. Keeps only events whose **title contains "WATSNEX"**. Buffers, personal appointments, holidays and
+   anything else without WATSNEX in the title are ignored. (Change with `CALENDAR_TITLE_KEYWORDS`.)
+3. Asks Claude who the outside person is. Handles any title format: "Pre-Podcast Chat - Jennifer
+   Wells", "Arra G. Yerganian and WATSNEX BioPharma", "discovery call with Josh (LARTA) - Pascal
+   (WATSNEX Biopharma)". It also uses the attendee list and description (Calendly answers,
+   LinkedIn, website). Internal meetings like "WATSNEX Sync" are skipped, and you (Pascal) are never
+   treated as the client.
+4. **Duplicate check**, in this order:
+   - same email as an existing CRM record → already exists, nothing created;
+   - otherwise similar names are pulled from the CRM (tolerates typos, middle initials, accents,
+     credentials like "M.D., Ph.D.") and Claude decides whether one is the same person.
+5. **New client → creates a CRM record** with Name, Email, Account Name, Meeting Name, Meeting Start,
+   Meeting Type, Location, LinkedIn, Company Website and the event description in Note.
+6. **Not sure?** (only a first name, no name at all, or *might* be an existing client) → the record is
+   **still created**, marked "⚠️ Needs review" in its Note, and a **Slack message** is sent with a
+   direct link to the record so you can fix the name in Airtable.
+
+Each event is handled once. The record's Note is tagged with the Google event ID (`[gcal:…]`), so
+even after a redeploy the same event never creates a second record.
+
+### One-time setup
+
+**1. Google Calendar access (service account)**
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com), create a project (e.g. "WATSNEX agent").
+2. **APIs & Services → Library** → enable **Google Calendar API**.
+3. **IAM & Admin → Service Accounts → Create service account** (no roles needed).
+4. Open it → **Keys → Add key → Create new key → JSON**. A `.json` file downloads.
+5. Copy the service account's email (`…@….iam.gserviceaccount.com`).
+6. In [Google Calendar](https://calendar.google.com) → ⚙️ **Settings** → your calendar →
+   **Share with specific people** → add that email with **See all event details**.
+7. Put the whole contents of the JSON file into `GOOGLE_SERVICE_ACCOUNT_JSON` (one line).
+
+A service account doesn't expire, unlike a personal Google login token, so the agent keeps working
+without you re-authorizing it.
+
+**2. Airtable token**
+
+[airtable.com/create/tokens](https://airtable.com/create/tokens) → **Create token** → scopes
+`data.records:read` and `data.records:write` → access: **Lead Tracking** base → copy into
+`AIRTABLE_API_KEY`.
+
+**3. Slack webhook**
+
+[api.slack.com/apps](https://api.slack.com/apps) → **Create New App → From scratch** → **Incoming
+Webhooks** → turn on → **Add New Webhook to Workspace** → pick the channel → copy the URL into
+`SLACK_WEBHOOK_URL`.
+
+**4. Secret for the scheduler**
+
+Set `CRON_SECRET` to any long random string. The endpoint refuses calls without it.
+
+All variables are listed in `.env.example`. Add them to `.env.local` locally, or to your host's
+environment variables (e.g. Railway → service → Variables) in production.
+
+### Running it
+
+The agent is the endpoint `GET/POST /api/agents/calendar-sync`.
+
+**Try it first without writing anything** (shows what it *would* create):
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" "https://YOUR-APP/api/agents/calendar-sync?dryRun=1&since=2026-10-01T00:00:00Z"
+```
+
+**Schedule it every 5 minutes** with any cron service:
+
+- **Railway**: add a Cron service with schedule `*/5 * * * *` that runs
+  `curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://YOUR-APP/api/agents/calendar-sync`
+- **cron-job.org** (free): new job → URL `https://YOUR-APP/api/agents/calendar-sync?secret=YOUR_CRON_SECRET` → every 5 minutes.
+
+The response is a JSON summary of each WATSNEX event and what happened to it (`created`,
+`created_needs_review`, `already_exists`, `not_a_client_meeting`, or `error`). Events that errored
+are retried on the next run.
+
+Code: `src/lib/calendar-agent/` (`run.ts` is the main flow) and `src/app/api/agents/calendar-sync/route.ts`.
+
 ## Notes
 
 - Generation calls Claude (`claude-opus-5`) with structured outputs, so the shape of the response
