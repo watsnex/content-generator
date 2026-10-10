@@ -1,12 +1,13 @@
-import type { CrmRecord } from "./airtable";
+import type { Person } from "./airtable";
 
-// Cheap, deterministic pre-filter: pick the handful of CRM records that could plausibly be the
-// person in this event (same email, same company domain, or a shared/near-identical name token),
-// so Claude only has to judge a short list instead of the whole table.
+// Cheap, deterministic pre-filter: pick the handful of people who could plausibly be the person in
+// this event (same email, same company domain, or a shared/near-identical name token), so Claude
+// only has to judge a short list instead of the whole table.
 
 const STOPWORDS = new Set([
   "and", "with", "the", "for", "call", "chat", "meeting", "intro", "introduction", "discovery",
-  "follow", "followup", "up", "pre", "podcast", "part", "mins", "min", "minutes", "session",
+  "follow", "followup", "up", "pre", "podcast", "recording", "part", "ii", "mins", "min", "minutes",
+  "session", "prep", "scoping", "strategic", "growth", "plan", "presentation", "ai", "solutions",
   "watsnex", "biopharma", "pharma", "dr", "md", "phd", "pharmd", "mr", "mrs", "ms", "msj", "mba",
   "jr", "sr", "inc", "llc", "ltd", "test", "one", "on", "of", "et", "avec", "appel",
 ]);
@@ -42,10 +43,21 @@ function editDistance(a: string, b: string): number {
 
 function tokensMatch(a: string, b: string): boolean {
   if (a === b) return true;
-  // "Bhattachanya" vs "Bhattacharya", "Jon" vs "John": tolerate small typos on longer tokens.
+  // "Bhattachanya" vs "Bhattacharya", "Joshn" vs "Josh", "Micheal" vs "Michael": tolerate small
+  // typos — one edit on short names, two on longer ones.
   const longest = Math.max(a.length, b.length);
-  if (longest >= 5) return editDistance(a, b) <= 2;
+  if (longest >= 7) return editDistance(a, b) <= 2;
+  if (longest >= 4) return editDistance(a, b) <= 1;
   return false;
+}
+
+/** True when every name token of the shorter name has a (near-)match in the longer one. */
+export function namesSimilar(a: string, b: string): boolean {
+  const ta = normalizeTokens(a);
+  const tb = normalizeTokens(b);
+  if (ta.length === 0 || tb.length === 0) return false;
+  const [short, long] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  return short.every((s) => long.some((l) => tokensMatch(s, l)));
 }
 
 export function emailDomain(email: string): string {
@@ -53,11 +65,11 @@ export function emailDomain(email: string): string {
 }
 
 export function findCandidates(
-  records: CrmRecord[],
+  people: Person[],
   query: { texts: string[]; emails: string[] },
   ownerName: string,
   limit = 15,
-): CrmRecord[] {
+): Person[] {
   const ownerTokens = new Set(normalizeTokens(ownerName));
   const queryTokens = new Set(
     [...query.texts, ...query.emails.map((e) => e.split("@")[0])]
@@ -69,23 +81,23 @@ export function findCandidates(
     [...queryEmails].map(emailDomain).filter((d) => d && !GENERIC_DOMAINS.has(d)),
   );
 
-  const scored = records.map((r) => {
+  const scored = people.map((p) => {
     let score = 0;
-    const email = r.email.toLowerCase();
-    if (email && queryEmails.has(email)) score += 100;
-    if (email && queryDomains.has(emailDomain(email))) score += 5;
-    const recordTokens = normalizeTokens(`${r.name} ${r.accountName}`);
-    for (const rt of recordTokens) {
+    for (const email of p.emails) {
+      if (queryEmails.has(email)) score += 100;
+      else if (queryDomains.has(emailDomain(email))) score += 5;
+    }
+    for (const pt of normalizeTokens(p.name)) {
       for (const qt of queryTokens) {
-        if (tokensMatch(rt, qt)) score += rt.length >= 4 ? 3 : 1;
+        if (tokensMatch(pt, qt)) score += pt.length >= 4 ? 3 : 1;
       }
     }
-    return { r, score };
+    return { p, score };
   });
 
   return scored
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
-    .map((s) => s.r);
+    .map((s) => s.p);
 }

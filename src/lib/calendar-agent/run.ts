@@ -1,6 +1,6 @@
-import { getAgentConfig, CRM_FIELDS, type AgentConfig } from "./config";
+import { getAgentConfig, PEOPLE_FIELDS, type AgentConfig } from "./config";
 import { listChangedEvents, type CalendarEvent } from "./google";
-import { listCrmRecords, createCrmRecord, recordUrl, type CrmRecord } from "./airtable";
+import { loadPeople, createPerson, recordUrl, type Person } from "./airtable";
 import { findCandidates } from "./match";
 import { analyzeEvent } from "./extract";
 import { notifySlack } from "./slack";
@@ -20,7 +20,7 @@ export interface RunSummary {
   dryRun: boolean;
   window: { updatedSince: string; until: string };
   scanned: number;
-  matchedKeyword: number;
+  businessEvents: number;
   results: EventResult[];
 }
 
@@ -63,7 +63,11 @@ function stripHtml(text: string): string {
     .trim();
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export function isBusinessTitle(cfg: AgentConfig, title: string): boolean {
+  const t = title.toLowerCase();
+  if (cfg.titleExclude.some((k) => t.includes(k.toLowerCase()))) return false;
+  return cfg.titleKeywords.some((k) => t.includes(k.toLowerCase()));
+}
 
 async function syncOnce(opts: { dryRun?: boolean; since?: Date }): Promise<RunSummary> {
   const cfg = getAgentConfig();
@@ -81,21 +85,17 @@ async function syncOnce(opts: { dryRun?: boolean; since?: Date }): Promise<RunSu
     serviceAccountJson: cfg.googleServiceAccountJson,
     calendarId: cfg.calendarId,
     updatedMin: updatedSince,
-    // Only care about meetings that haven't already happened (plus a day of grace).
+    // Only care about meetings that haven't already happened (plus a day of grace), unless backfilling.
     timeMin: new Date(Math.min(updatedSince.getTime(), now.getTime() - 24 * 60 * 60 * 1000)),
   });
 
-  const keywords = cfg.titleKeywords.map((k) => k.toLowerCase());
-  const relevant = events.filter((e) => {
-    const title = (e.summary ?? "").toLowerCase();
-    return keywords.some((k) => title.includes(k));
-  });
+  const relevant = events.filter((e) => isBusinessTitle(cfg, e.summary ?? ""));
 
   const summary: RunSummary = {
     dryRun,
     window: { updatedSince: updatedSince.toISOString(), until: now.toISOString() },
     scanned: events.length,
-    matchedKeyword: relevant.length,
+    businessEvents: relevant.length,
     results: [],
   };
   if (relevant.length === 0) {
@@ -103,9 +103,9 @@ async function syncOnce(opts: { dryRun?: boolean; since?: Date }): Promise<RunSu
     return summary;
   }
 
-  // Loaded once per run; records created during this run are appended so two events for the
+  // Loaded once per run; people created during this run are appended so two events for the
   // same new person in one batch don't create two records.
-  const crm = await listCrmRecords(cfg);
+  const people = await loadPeople(cfg);
 
   for (const event of relevant) {
     const key = eventKey(event);
@@ -115,11 +115,11 @@ async function syncOnce(opts: { dryRun?: boolean; since?: Date }): Promise<RunSu
 
     // Already handled and the title hasn't changed since → nothing new to learn.
     if (previous && previous.title === title) continue;
-    // Once a record exists for this event, never create another one, even if the title changes.
+    // Once a person record exists for this event, never create another one, even if the title changes.
     if (previous && previous.outcome !== "not_a_client_meeting") continue;
 
     try {
-      const result = await handleEvent(cfg, event, key, crm, dryRun);
+      const result = await handleEvent(cfg, event, key, people, dryRun);
       summary.results.push(result);
       if (!dryRun && result.outcome !== "error") {
         state.handled[key] = {
@@ -153,15 +153,15 @@ async function handleEvent(
   cfg: AgentConfig,
   event: CalendarEvent,
   key: string,
-  crm: CrmRecord[],
+  people: Person[],
   dryRun: boolean,
 ): Promise<EventResult> {
   const title = event.summary ?? "";
   const start = event.start?.dateTime ?? event.start?.date ?? "";
   const base = { eventId: key, title, start };
 
-  // 1. This exact calendar event already produced a CRM record (e.g. state file was lost).
-  const tagged = crm.find((r) => r.note.includes(marker(key)));
+  // 1. This exact calendar event already produced a record (e.g. state file was lost).
+  const tagged = people.find((p) => p.note.includes(marker(key)));
   if (tagged) {
     return { ...base, outcome: "already_exists", clientName: tagged.name, recordId: tagged.id, detail: "Record already created from this event" };
   }
@@ -173,7 +173,7 @@ async function handleEvent(
   const description = stripHtml(event.description ?? "").slice(0, 4000);
 
   const candidates = findCandidates(
-    crm,
+    people,
     { texts: [title, ...attendees.map((a) => a.displayName ?? "")], emails: attendeeEmails },
     cfg.ownerName,
   );
@@ -192,63 +192,52 @@ async function handleEvent(
     return { ...base, outcome: "not_a_client_meeting", detail: analysis.reason };
   }
 
-  // 3. Duplicate check. An exact email match always wins, regardless of how the name is spelled.
+  // 3. Duplicate check. An email that belongs to exactly one known person always wins,
+  //    regardless of how the name is spelled.
   const clientEmail =
     analysis.clientEmail?.toLowerCase() ?? (attendeeEmails.length === 1 ? attendeeEmails[0] : null);
-  const emailMatch = clientEmail ? crm.find((r) => r.email.toLowerCase() === clientEmail) : undefined;
-  if (emailMatch) {
-    return { ...base, outcome: "already_exists", clientName: emailMatch.name, recordId: emailMatch.id, detail: `Same email as existing record "${emailMatch.name}"` };
+  const emailOwners = clientEmail ? people.filter((p) => p.emails.includes(clientEmail)) : [];
+  if (emailOwners.length === 1) {
+    const p = emailOwners[0];
+    return { ...base, outcome: "already_exists", clientName: p.name, recordId: p.id, detail: `Same email as existing person "${p.name}"` };
   }
 
   const nameMatch = candidates.find((c) => c.id === analysis.matchedRecordId);
   if (nameMatch && analysis.matchConfidence === "certain") {
-    return { ...base, outcome: "already_exists", clientName: nameMatch.name, recordId: nameMatch.id, detail: `Matches existing record "${nameMatch.name}"` };
+    return { ...base, outcome: "already_exists", clientName: nameMatch.name, recordId: nameMatch.id, detail: `Matches existing person "${nameMatch.name}"` };
   }
 
-  // 4. New client → create the record. Flag it for review when the agent isn't sure.
+  // 4. New person → create the record. Flag it for review when the agent isn't sure.
   const reviewReasons: string[] = [];
   if (!analysis.clientName) reviewReasons.push("Couldn't work out the client's name from the event");
   else if (analysis.nameConfidence === "low") reviewReasons.push(analysis.nameConcern || "Name may be incomplete");
   if (nameMatch && analysis.matchConfidence === "possible") {
-    reviewReasons.push(`Might be the same person as existing record "${nameMatch.name}" (${recordUrl(cfg, nameMatch.id)})`);
+    reviewReasons.push(`Might be the same person as "${nameMatch.name}" (${recordUrl(cfg, nameMatch.id)})`);
   }
   const needsReview = reviewReasons.length > 0;
   const name = analysis.clientName || clientEmail || `Unknown – ${title}`;
 
-  const noteLines = [
-    `${marker(key)} Added automatically by the calendar agent.`,
+  const note = [
+    `${marker(key)} Added by the calendar agent from "${title}"${start ? ` (${start.slice(0, 10)})` : ""}.`,
+    ...(analysis.company ? [`Company: ${analysis.company}`] : []),
+    ...(clientEmail ? [`Email: ${clientEmail}`] : []),
     ...(needsReview ? [`⚠️ Needs review: ${reviewReasons.join("; ")}`] : []),
-    "",
-    description,
-  ];
-
-  const fields = {
-    [CRM_FIELDS.name]: name,
-    [CRM_FIELDS.email]: clientEmail && EMAIL_RE.test(clientEmail) ? clientEmail : null,
-    [CRM_FIELDS.accountName]: analysis.company,
-    [CRM_FIELDS.meetingName]: title,
-    [CRM_FIELDS.meetingStart]: event.start?.dateTime ?? null,
-    [CRM_FIELDS.meetingType]: analysis.meetingType,
-    [CRM_FIELDS.location]: event.location && /^https?:\/\//.test(event.location) ? event.location : null,
-    [CRM_FIELDS.linkedin]: analysis.linkedinUrl,
-    [CRM_FIELDS.website]: analysis.companyWebsite,
-    [CRM_FIELDS.note]: noteLines.join("\n").trim(),
-  };
+  ].join("\n");
 
   const outcome: Outcome = needsReview ? "created_needs_review" : "created";
   if (dryRun) {
-    return { ...base, outcome, clientName: name, detail: `[dry run] Would create record${needsReview ? ` (review: ${reviewReasons.join("; ")})` : ""}` };
+    return { ...base, outcome, clientName: name, detail: `[dry run] Would create "${name}"${needsReview ? ` (review: ${reviewReasons.join("; ")})` : ""}` };
   }
 
-  const recordId = await createCrmRecord(cfg, fields);
-  crm.push({ id: recordId, name, email: clientEmail ?? "", accountName: analysis.company ?? "", note: fields[CRM_FIELDS.note] as string });
+  const recordId = await createPerson(cfg, { [PEOPLE_FIELDS.name]: name, [PEOPLE_FIELDS.note]: note });
+  people.push({ id: recordId, name, note, emails: clientEmail ? [clientEmail] : [], pastMeetings: [title] });
 
   if (needsReview) {
     await notifySlack(
       cfg.slackWebhookUrl,
       [
-        `:warning: *New CRM record needs a name check*`,
-        `*Saved as:* ${name}`,
+        `:warning: *New follow-up record needs a name check*`,
+        `*Saved as:* ${name}${analysis.company ? ` (${analysis.company})` : ""}`,
         `*Meeting:* ${title}`,
         `*When:* ${start}`,
         `*Why:* ${reviewReasons.join("; ")}`,

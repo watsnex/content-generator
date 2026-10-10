@@ -112,30 +112,35 @@ src/
 ## Calendar → Airtable agent
 
 Watches the WATSNEX Google Calendar and makes sure every client you have a meeting with is in the
-Airtable **Lead Tracking → CRM** table. No n8n/Zapier workflow needed.
+Airtable **Lead Tracking → Follow -Up Status** table (one row per person). No n8n/Zapier workflow
+needed. It only *adds* people. It never edits or deletes rows you've filled in by hand.
 
 ### What it does on each run
 
 1. Pulls calendar events created or changed since the last run.
-2. Keeps only events whose **title contains "WATSNEX"**. Buffers, personal appointments, holidays and
-   anything else without WATSNEX in the title are ignored. (Change with `CALENDAR_TITLE_KEYWORDS`.)
+2. Keeps only **business** events: the title must contain "WATSNEX" or a meeting keyword
+   (podcast, introduction, intro call, discovery, growth plan, follow up, "Pascal Cote and …").
+   Anything with "buffer" in the title is always skipped, and so are personal events, holidays and
+   appointments that don't match. (Change with `CALENDAR_TITLE_KEYWORDS` / `CALENDAR_TITLE_EXCLUDE`.
+   Set `CALENDAR_TITLE_KEYWORDS=WATSNEX` to only accept titles containing WATSNEX.)
 3. Asks Claude who the outside person is. Handles any title format: "Pre-Podcast Chat - Jennifer
-   Wells", "Arra G. Yerganian and WATSNEX BioPharma", "discovery call with Josh (LARTA) - Pascal
-   (WATSNEX Biopharma)". It also uses the attendee list and description (Calendly answers,
-   LinkedIn, website). Internal meetings like "WATSNEX Sync" are skipped, and you (Pascal) are never
-   treated as the client.
-4. **Duplicate check**, in this order:
-   - same email as an existing CRM record → already exists, nothing created;
-   - otherwise similar names are pulled from the CRM (tolerates typos, middle initials, accents,
-     credentials like "M.D., Ph.D.") and Claude decides whether one is the same person.
-5. **New client → creates a CRM record** with Name, Email, Account Name, Meeting Name, Meeting Start,
-   Meeting Type, Location, LinkedIn, Company Website and the event description in Note.
-6. **Not sure?** (only a first name, no name at all, or *might* be an existing client) → the record is
-   **still created**, marked "⚠️ Needs review" in its Note, and a **Slack message** is sent with a
-   direct link to the record so you can fix the name in Airtable.
+   Wells", "Arra G. Yerganian and WATSNEX BioPharma", "podcast Jeff Whitmore (United Bio Channels) -
+   Pascal (WATSNEX podcast)". It also uses the attendee list and description. Internal meetings like
+   "WATSNEX Sync" are skipped, and you (Pascal) are never treated as the client.
+4. **Duplicate check** against Follow -Up Status. That table has no email column, so the agent also
+   reads **Dashboard CRM** (read only) to learn each person's emails and past meeting titles:
+   - attendee email belongs to exactly one known person → already exists, nothing created;
+   - otherwise similar names are short-listed (tolerates typos like "Joshn Mann"/"Micheal",
+     nicknames, middle initials like "Arra G", accents, credentials) and Claude decides whether one
+     is the same person, using their past meetings and emails as evidence.
+5. **New person → creates a Follow -Up Status row** with the Name, and a Note saying which meeting
+   it came from (plus company and email when known).
+6. **Not sure?** (only a first name, no name at all, or *might* be someone already in the table) →
+   the row is **still created**, marked "⚠️ Needs review" in its Note, and a **Slack message** is
+   sent with a direct link to the row so you can fix the name in Airtable.
 
-Each event is handled once. The record's Note is tagged with the Google event ID (`[gcal:…]`), so
-even after a redeploy the same event never creates a second record.
+Each event is handled once. The row's Note is tagged with the Google event ID (`[gcal:…]`), so even
+after a redeploy the same event never creates a second row.
 
 ### One-time setup
 
@@ -156,7 +161,7 @@ without you re-authorizing it.
 **2. Airtable token**
 
 [airtable.com/create/tokens](https://airtable.com/create/tokens) → **Create token** → scopes
-`data.records:read` and `data.records:write` → access: **Lead Tracking** base → copy into
+`data.records:read` and `data.records:write` → access: **Lead Tracking** base (the agent reads Dashboard CRM and adds rows to Follow -Up Status) → copy into
 `AIRTABLE_API_KEY`.
 
 **3. Slack webhook**
