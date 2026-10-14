@@ -2,6 +2,16 @@ const HISTORY_KEY = "wcg:history";
 const MAX_ENTRIES = 50;
 
 /**
+ * Hard ceiling on the raw JSON string's length before we'll even attempt to parse
+ * it. JSON.parse is synchronous and blocks the main thread — on a multi-megabyte
+ * string (e.g. history logged before full-content caps existed, during the window
+ * where every entry kept unbounded content) this can freeze the tab for long enough
+ * to trigger the browser's "Page Unresponsive" dialog. If we ever see something
+ * this large, treat it as unrecoverable bloat and clear it rather than risk a hang.
+ */
+const MAX_RAW_CHARS = 2_000_000;
+
+/**
  * How many of the most recent entries of each kind keep their full reopenable
  * content. Reel entries are plain text (cheap), episode entries carry postcard/
  * carousel images (expensive), so episodes get a much tighter cap. Entries beyond
@@ -24,13 +34,45 @@ export interface HistoryEntry {
   content?: unknown;
 }
 
+function capFullContent(entries: HistoryEntry[]): HistoryEntry[] {
+  const seenByKind: Record<string, number> = {};
+  return entries.map((e) => {
+    seenByKind[e.kind] = (seenByKind[e.kind] ?? 0) + 1;
+    const cap = MAX_FULL_CONTENT_BY_KIND[e.kind] ?? 0;
+    if (seenByKind[e.kind] > cap && e.content !== undefined) {
+      return { ...e, content: undefined };
+    }
+    return e;
+  });
+}
+
 function readAll(): HistoryEntry[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(HISTORY_KEY);
     if (!raw) return [];
+    if (raw.length > MAX_RAW_CHARS) {
+      // Parsing this synchronously risks hanging the tab. This can only happen from
+      // data written before full-content caps existed — clear it and start fresh.
+      window.localStorage.removeItem(HISTORY_KEY);
+      return [];
+    }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    // Self-heal: re-apply the cap even to data that was already on disk, in case it
+    // predates the cap or the cap itself changes. Only re-write if it actually
+    // trimmed something, so a normal read stays a pure read.
+    const capped = capFullContent(parsed);
+    const changed = capped.some((e, i) => e.content !== parsed[i]?.content);
+    if (changed) {
+      try {
+        window.localStorage.setItem(HISTORY_KEY, JSON.stringify(capped));
+      } catch {
+        // Best-effort — still return the capped-in-memory version either way.
+      }
+    }
+    return capped;
   } catch {
     return [];
   }
@@ -59,17 +101,7 @@ export function logHistoryEntry(entry: Omit<HistoryEntry, "savedAt">): void {
   if (typeof window === "undefined") return;
   let entries = readAll();
   entries.unshift({ ...entry, savedAt: Date.now() });
-  entries = entries.slice(0, MAX_ENTRIES);
-
-  const seenByKind: Record<string, number> = {};
-  entries = entries.map((e) => {
-    seenByKind[e.kind] = (seenByKind[e.kind] ?? 0) + 1;
-    const cap = MAX_FULL_CONTENT_BY_KIND[e.kind] ?? 0;
-    if (seenByKind[e.kind] > cap && e.content !== undefined) {
-      return { ...e, content: undefined };
-    }
-    return e;
-  });
+  entries = capFullContent(entries.slice(0, MAX_ENTRIES));
 
   while (entries.length > 0) {
     try {
