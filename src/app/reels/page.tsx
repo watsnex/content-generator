@@ -4,9 +4,11 @@ import { useRef, useState } from "react";
 import { Nav } from "@/components/Nav";
 import { ActivitySummary } from "@/components/ActivitySummary";
 import { savePersisted, loadPersisted, clearPersisted } from "@/lib/persist";
-import { logHistoryEntry } from "@/lib/history";
+import { logHistoryEntry, type HistoryEntry } from "@/lib/history";
+import { isValidCaptionsResult as isValidCaptionsResultShape } from "@/lib/resultShapes";
+import { REELS_RESULT_KEY } from "@/lib/storageKeys";
 
-const STORAGE_KEY = "wcg:reelsResult";
+const STORAGE_KEY = REELS_RESULT_KEY;
 
 interface CaptionsResult {
   clipTopic: string;
@@ -23,13 +25,7 @@ interface CaptionsResult {
  * treat it as if nothing was saved rather than risk a crash.
  */
 function isValidCaptionsResult(data: unknown): data is CaptionsResult {
-  if (!data || typeof data !== "object") return false;
-  const d = data as Partial<CaptionsResult>;
-  return (
-    typeof d.clipTopic === "string" &&
-    Array.isArray(d.captionVariants) &&
-    Array.isArray(d.hashtags)
-  );
+  return isValidCaptionsResultShape(data);
 }
 
 function loadValidCaptionsResult() {
@@ -93,6 +89,16 @@ export default function ReelsPage() {
     clearPersisted(STORAGE_KEY);
   }
 
+  function handleSelectHistory(entry: HistoryEntry) {
+    if (!isValidCaptionsResult(entry.content)) return;
+    setResult(entry.content);
+    setRestoredAt(entry.savedAt);
+    savePersisted(STORAGE_KEY, entry.content);
+    clearInputs();
+    setError(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -118,11 +124,13 @@ export default function ReelsPage() {
       logHistoryEntry({
         kind: "reel",
         topic: data.clipTopic,
+        guestName: data.guestName,
         counts: {
           captionSets: 1,
           captionOptions: data.captionVariants.length,
           hashtagSets: 1,
         },
+        content: data,
       });
       clearInputs();
     } catch (err) {
@@ -268,7 +276,7 @@ export default function ReelsPage() {
           </div>
         ) : null}
 
-        <ActivitySummary filterKind="reel" />
+        <ActivitySummary filterKind="reel" onSelect={handleSelectHistory} />
       </main>
     </div>
   );
