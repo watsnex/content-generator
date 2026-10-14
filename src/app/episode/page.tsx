@@ -4,9 +4,11 @@ import { useRef, useState } from "react";
 import { Nav } from "@/components/Nav";
 import { ActivitySummary } from "@/components/ActivitySummary";
 import { savePersisted, loadPersisted, clearPersisted } from "@/lib/persist";
-import { logHistoryEntry } from "@/lib/history";
+import { logHistoryEntry, type HistoryEntry } from "@/lib/history";
+import { isValidEpisodeResult as isValidEpisodeResultShape } from "@/lib/resultShapes";
+import { EPISODE_RESULT_KEY } from "@/lib/storageKeys";
 
-const STORAGE_KEY = "wcg:episodeResult";
+const STORAGE_KEY = EPISODE_RESULT_KEY;
 
 interface Quote {
   text: string;
@@ -42,16 +44,7 @@ interface EpisodeResult {
  * if nothing was saved rather than risk a crash.
  */
 function isValidEpisodeResult(data: unknown): data is EpisodeResult {
-  if (!data || typeof data !== "object") return false;
-  const d = data as Partial<EpisodeResult>;
-  return (
-    !!d.content &&
-    typeof d.content.linkedinPost === "string" &&
-    Array.isArray(d.content.linkedinShortPosts) &&
-    Array.isArray(d.postcards) &&
-    !!d.carousel &&
-    Array.isArray(d.carousel.slides)
-  );
+  return isValidEpisodeResultShape(data);
 }
 
 function loadValidEpisodeResult() {
@@ -149,6 +142,16 @@ export default function EpisodePage() {
     clearPersisted(STORAGE_KEY);
   }
 
+  function handleSelectHistory(entry: HistoryEntry) {
+    if (!isValidEpisodeResult(entry.content)) return;
+    setResult(entry.content);
+    setRestoredAt(entry.savedAt);
+    savePersisted(STORAGE_KEY, entry.content);
+    clearInputs();
+    setError(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -182,6 +185,7 @@ export default function EpisodePage() {
           postcards: data.postcards.length,
           carouselSlides: data.carousel.slides.length,
         },
+        content: data,
       });
       clearInputs();
     } catch (err) {
@@ -434,7 +438,7 @@ export default function EpisodePage() {
           </div>
         ) : null}
 
-        <ActivitySummary filterKind="episode" />
+        <ActivitySummary filterKind="episode" onSelect={handleSelectHistory} />
       </main>
     </div>
   );

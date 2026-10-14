@@ -1,5 +1,5 @@
 const HISTORY_KEY = "wcg:history";
-const MAX_ENTRIES = 500;
+const MAX_ENTRIES = 50;
 
 export interface HistoryEntry {
   savedAt: number;
@@ -7,6 +7,8 @@ export interface HistoryEntry {
   topic: string;
   guestName?: string | null;
   counts: Record<string, number>;
+  /** Full API response for this generation (EpisodeResult or CaptionsResult, by kind) — lets a log entry be reopened and reused. Validate before trusting its shape, same as any other localStorage read. */
+  content: unknown;
 }
 
 function readAll(): HistoryEntry[] {
@@ -22,18 +24,26 @@ function readAll(): HistoryEntry[] {
 }
 
 /**
- * Appends a lightweight record (timestamp, topic, and format counts only — never the
- * generated text/images) so the log stays a few hundred bytes per entry and can hold
- * hundreds of generations without approaching storage limits. Newest first, capped.
+ * Appends a full entry (including the generated content, so it can be reopened later)
+ * and writes it back. Unlike the old metadata-only log, these entries carry real
+ * weight (images for episode entries especially), so a straight write can exceed
+ * localStorage's quota. On failure, evict the oldest entry and retry — repeating
+ * until it fits or nothing is left — rather than losing the newest generation or
+ * crashing the app over a storage limit.
  */
 export function logHistoryEntry(entry: Omit<HistoryEntry, "savedAt">): void {
   if (typeof window === "undefined") return;
-  try {
-    const entries = readAll();
-    entries.unshift({ ...entry, savedAt: Date.now() });
-    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)));
-  } catch {
-    // Storage full/unavailable — skip logging this entry rather than breaking generation.
+  let entries = readAll();
+  entries.unshift({ ...entry, savedAt: Date.now() });
+  entries = entries.slice(0, MAX_ENTRIES);
+
+  while (entries.length > 0) {
+    try {
+      window.localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+      return;
+    } catch {
+      entries.pop();
+    }
   }
 }
 
